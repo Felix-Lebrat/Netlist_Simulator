@@ -1,6 +1,6 @@
 # Netlist Simulator
 
-Compilateur de netlist vers C++, programmé en C++
+Compilateur de netlist vers C++, programmé en C++  
 [github du projet](https://github.com/Felix-Lebrat/Netlist_Simulator)
 
 ## Compilation
