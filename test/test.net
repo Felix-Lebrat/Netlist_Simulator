@@ -1,0 +1,9 @@
+INPUT
+OUTPUT o
+VAR
+  a,o
+IN
+a=o
+o=a
+
+
