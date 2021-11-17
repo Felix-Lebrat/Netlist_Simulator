@@ -62,11 +62,11 @@ void write_cpp(Program *p,string skeleton_file)
 {
     stringstream code[10];
     /* code contient le code à insérer aux différentes positions marquées par des # dans le fichier skeleton :
-        0 la déclaration des roms
+        0 la déclaration des variables
         1 l'initialisation des roms
-        2 la déclaration des rams
-        3 la déclaration des variables
-        4 la déclaration des registres
+        2 la creation des rams
+        3 la creation des variables
+        4 la creation des registres
         5 l'actualisation des entrées
         6 l'actualisation des variables
         7 l'actualisation des rams
@@ -83,19 +83,21 @@ void write_cpp(Program *p,string skeleton_file)
             throw p->equations[i].left;
         }
         string binop;
+        code[6]<<"\t"<<left->first<<"=([](){"<<endl;
+        code[6]<<"\t\tif(!"<<left->first<<"_bool) ";
         if(p->equations[i].type==ID)
         {
             map<string,int>::iterator right=p->var_dict.find(p->equations[i].right[0].str);
             if(right==p->var_dict.end()||right->second!=left->second)
                 throw p->equations[i].right[0].str;
-            code[6]<<"\t\tcopy("<<right->first<<","<<left->first<<",0,0,"<<right->second<<");"<<endl;
+            code[6]<<"copy("<<right->first<<"(),"<<left->first<<"_mem,0,0,"<<right->second<<");"<<endl;
         }
         else if(p->equations[i].type==NUM)
         {
             string constant=p->constants[p->equations[i].right[0].i].value;
             if(left->second!=constant.size())
                 throw left->first;
-            code[6]<<"\t\tof_string("<<left->first<<","<<left->second<<",\"";
+            code[6]<<"of_string("<<left->first<<"_mem,"<<left->second<<",\"";
             code[6]<<constant;
             code[6]<<"\");"<<endl;
         }
@@ -104,17 +106,17 @@ void write_cpp(Program *p,string skeleton_file)
             map<string,int>::iterator right=p->var_dict.find(p->equations[i].right[0].str);
             if(left->second!=right->second)
                 throw left->first;
-            code[6]<<"\t\top_not("<<left->first<<","<<right->first<<","<<right->second<<");"<<endl;
+            code[6]<<"op_not("<<left->first<<"_mem,"<<right->first<<"(),"<<right->second<<");"<<endl;
         }
         else if(p->equations[i].type==REG)
         {
              map<string,int>::iterator right=p->var_dict.find(p->equations[i].right[0].str);
             if(left->second!=right->second)
                 throw left->first;
-            code[4]<<"\tchar* "<<right->first<<"_reg;"<<endl;
+            code[0]<<"char* "<<right->first<<"_reg;"<<endl;
             code[4]<<"\tcreate_mem(&"<<right->first<<"_reg,1,"<<right->second<<");"<<endl;
-            code[6]<<"\t\tcopy("<<right->first<<"_reg,"<<left->first<<",0,0,"<<left->second<<");"<<endl;
-            code[8]<<"\t\tcopy("<<right->first<<","<<right->first<<"_reg,0,0,"<<right->second<<");"<<endl;
+            code[6]<<"copy("<<right->first<<"_reg,"<<left->first<<"_mem,0,0,"<<left->second<<");"<<endl;
+            code[8]<<"\t\tcopy("<<right->first<<"(),"<<right->first<<"_reg,0,0,"<<right->second<<");"<<endl;
         }
         else if(p->equations[i].type==AND)
         {
@@ -138,7 +140,7 @@ void write_cpp(Program *p,string skeleton_file)
             map<string,int>::iterator b=p->var_dict.find(p->equations[i].right[1].str);
             if(left->second!=a->second+b->second)
                 throw left->first;
-            code[6]<<"\t\top_concat("<<left->first<<","<<a->first<<","<<b->first<<","<<a->second<<","<<b->second<<");"<<endl;
+            code[6]<<"op_concat("<<left->first<<"_mem,"<<a->first<<"(),"<<b->first<<"(),"<<a->second<<","<<b->second<<");"<<endl;
 
         }
         else if(p->equations[i].type==SELECT)
@@ -149,7 +151,7 @@ void write_cpp(Program *p,string skeleton_file)
                 throw left->first;
             if(a->second<=no)
                 throw a->first;
-            code[6]<<"\t\top_select("<<left->first<<","<<no<<","<<a->first<<");"<<endl;
+            code[6]<<"op_select("<<left->first<<"_mem,"<<no<<","<<a->first<<"());"<<endl;
         }
         else if(p->equations[i].type==MUX)
         {
@@ -160,7 +162,7 @@ void write_cpp(Program *p,string skeleton_file)
                 throw choice->first;
             if(left->second!=a->second||left->second!=b->second)
                 throw left->first;
-            code[6]<<"\t\top_mux("<<left->first<<","<<choice->first<<","<<a->first<<","<<b->first<<","<<left->second<<");"<<endl;
+            code[6]<<"op_mux("<<left->first<<"_mem,"<<choice->first<<"(),"<<a->first<<"(),"<<b->first<<"(),"<<left->second<<");"<<endl;
 
         }
         else if(p->equations[i].type==SLICE)
@@ -172,7 +174,7 @@ void write_cpp(Program *p,string skeleton_file)
                 throw left->first;
             if(a->second<=i2||i1<0)
                 throw a->first;
-            code[6]<<"\t\top_slice("<<left->first<<","<<i1<<","<<i2<<","<<a->first<<");"<<endl;
+            code[6]<<"op_slice("<<left->first<<"_mem,"<<i1<<","<<i2<<","<<a->first<<"());"<<endl;
 
         }
         else if(p->equations[i].type==ROM)
@@ -184,10 +186,10 @@ void write_cpp(Program *p,string skeleton_file)
                 throw left->first;
             if(read_addr->second!=addr_size)
                 throw read_addr->first;
-            code[0]<<"\tchar* "<<left->first<<"_rom;"<<endl;
-            code[0]<<"\tcreate_mem(&"<<left->first<<"_rom,"<<addr_size<<","<<word_size<<");"<<endl;
+            code[0]<<"char* "<<left->first<<"_rom;"<<endl;
+            code[1]<<"\tcreate_mem(&"<<left->first<<"_rom,"<<addr_size<<","<<word_size<<");"<<endl;
             code[1]<<"\tinit_rom("<<left->first<<"_rom,\""<<left->first<<"\",hexa,"<<addr_size<<","<<word_size<<");"<<endl;
-            code[6]<<"\t\tcopy("<<left->first<<"_rom,"<<left->first<<",to_int("<<read_addr->first<<",0,"<<addr_size<<"),0,"<<word_size<<");"<<endl;
+            code[6]<<"copy("<<left->first<<"_rom,"<<left->first<<"_mem,to_int("<<read_addr->first<<"(),0,"<<addr_size<<"),0,"<<word_size<<");"<<endl;
 
         }
         else if(p->equations[i].type==RAM)
@@ -199,9 +201,9 @@ void write_cpp(Program *p,string skeleton_file)
                 throw left->first;
             if(read_addr->second!=addr_size)
                 throw read_addr->first;
-            code[2]<<"\tchar* "<<left->first<<"_ram;"<<endl;
+            code[0]<<"char* "<<left->first<<"_ram;"<<endl;
             code[2]<<"\tcreate_mem(&"<<left->first<<"_ram,"<<addr_size<<","<<word_size<<");"<<endl;
-            code[6]<<"\t\tcopy("<<left->first<<"_ram,"<<left->first<<",to_int("<<read_addr->first<<",0,"<<addr_size<<"),0,"<<word_size<<");"<<endl;
+            code[6]<<"copy("<<left->first<<"_ram,"<<left->first<<"_mem,to_int("<<read_addr->first<<"(),0,"<<addr_size<<"),0,"<<word_size<<");"<<endl;
 
             map<string,int>::iterator write_enable=p->var_dict.find(p->equations[i].right[3].str);
             map<string,int>::iterator write_addr=p->var_dict.find(p->equations[i].right[4].str);
@@ -213,9 +215,9 @@ void write_cpp(Program *p,string skeleton_file)
             if(write_data->second!=word_size)
                 throw write_data->first;
 
-            code[7]<<"\t\tif(*"<<write_enable->first<<"){"<<endl;
-                code[7]<<"\t\t\tcopy("<<write_data->first<<","<<left->first<<"_ram,0,";
-                code[7]<<"to_int("<<write_addr->first<<",0,"<<addr_size<<"),";
+            code[7]<<"\t\tif(*"<<write_enable->first<<"()){"<<endl;
+                code[7]<<"\t\t\tcopy("<<write_data->first<<"(),"<<left->first<<"_ram,0,";
+                code[7]<<"to_int("<<write_addr->first<<"(),0,"<<addr_size<<"),";
                 code[7]<<word_size<<");"<<endl;
             code[7]<<"\t\t}"<<endl;
 
@@ -226,14 +228,20 @@ void write_cpp(Program *p,string skeleton_file)
             map<string,int>::iterator b=p->var_dict.find(p->equations[i].right[1].str);
             if(left->second!=a->second||left->second!=b->second)
                 throw left->first;
-            code[6]<<"\t\top_"<<binop<<"("<<left->first<<","<<a->first<<","<<b->first<<","<<left->second<<");"<<endl;
+            code[6]<<"op_"<<binop<<"("<<left->first<<"_mem,"<<a->first<<"(),"<<b->first<<"(),"<<left->second<<");"<<endl;
         }
+        code[6]<<"\t\t"<<left->first<<"_bool=true;"<<endl;
+        code[6]<<"\t\treturn "<<left->first<<"_mem;"<<endl;
+        code[6]<<"\t});"<<endl;
 
     }
     for(map<string,int>::iterator it=p->var_dict.begin();it!=p->var_dict.end();it++)
     {
-        code[3]<<"\tchar* "<<it->first<<";"<<endl;
-        code[3]<<"\tcreate_mem(&"<<it->first<<",1,"<<it->second<<");"<<endl;
+        code[0]<<"char* "<<it->first<<"_mem;"<<endl;
+        code[0]<<"bool "<<it->first<<"_bool;"<<endl;
+        code[0]<<"function<char*()> "<<it->first<<";"<<endl;
+        code[5]<<"\t\t"<<it->first<<"_bool=false;"<<endl;
+        code[3]<<"\tcreate_mem(&"<<it->first<<"_mem,1,"<<it->second<<");"<<endl;
     }
 
     for(int i=p->input.size()-1;i>=0;i--)
@@ -241,7 +249,8 @@ void write_cpp(Program *p,string skeleton_file)
         map<string,int>::iterator input=p->var_dict.find(p->input[i]);
         if(input==p->var_dict.end())
             throw p->input[i];
-        code[5]<<"\t\twhile(!of_input("<<input->first<<","<<input->second<<",\""<<input->first<<"\"));"<<endl;
+        code[6]<<"\t\t"<<input->first<<"=[](){return "<<input->first<<"_mem;};"<<endl;
+        code[5]<<"\t\twhile(!of_input("<<input->first<<"_mem,"<<input->second<<",\""<<input->first<<"\"));"<<endl;
     }
 
     for(int i=p->output.size()-1;i>=0;i--)
@@ -249,7 +258,7 @@ void write_cpp(Program *p,string skeleton_file)
         map<string,int>::iterator output=p->var_dict.find(p->output[i]);
         if(output==p->var_dict.end())
             throw p->output[i];
-        code[9]<<"\t\tcout<<\""<<output->first<<" : \";\n"<<"\t\tprint("<<output->first<<",0,"<<output->second<<");"<<endl;
+        code[9]<<"\t\tcout<<\""<<output->first<<" : \";\n"<<"\t\tprint("<<output->first<<"(),0,"<<output->second<<");"<<endl;
     }
 
     ifstream file(skeleton_file);
@@ -266,11 +275,13 @@ void write_cpp(Program *p,string skeleton_file)
         cerr<<"erreur lors de l'ouverture de out.cpp";
         exit(EXIT_FAILURE);
     }
+
+    int tab_correspondance[10]={0,1,2,3,4,6,5,7,9,8};
     while(file.get(buff))
     {
         if(buff=='$')
         {
-            output_file<<code[i].str();
+            output_file<<code[tab_correspondance[i]].str();
             i++;
         }
         else
