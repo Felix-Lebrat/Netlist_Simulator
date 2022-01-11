@@ -2,6 +2,7 @@
     #include "structures.h"
     #include <stdio.h>
     #include "lexer.h"
+    #include "parser.h"
     #include <map>
     #include <string>
     #include <iostream>
@@ -9,7 +10,7 @@
     #include <vector>
     void yyerror(char* s)
     {
-        fprintf (stderr, "%s\n", s);
+        fprintf (stderr, "%s ligne %d colonne %d\n", s,yylloc.first_line,yylloc.first_column);
         exit(EXIT_FAILURE);
     }
     Program prg;
@@ -37,7 +38,27 @@
         }
         return ret;
     }
+
+    # define YYLLOC_DEFAULT(Cur, Rhs, N)                      \
+    do  {                                                      \
+    if (N)                                                  \
+    {                                                     \
+        (Cur).first_line   = YYRHSLOC(Rhs, 1).first_line;   \
+        (Cur).first_column = YYRHSLOC(Rhs, 1).first_column; \
+        (Cur).last_line    = YYRHSLOC(Rhs, N).last_line;    \
+        (Cur).last_column  = YYRHSLOC(Rhs, N).last_column;  \
+        }                                                     \
+    else                                                    \
+    {                                                     \
+        (Cur).first_line   = (Cur).last_line   =            \
+            YYRHSLOC(Rhs, 0).last_line;                       \
+        (Cur).first_column = (Cur).last_column =            \
+            YYRHSLOC(Rhs, 0).last_column;                     \
+    }                                                     \
+    }                                              \
+    while (0)
 %}
+%locations
 
 %union
 {

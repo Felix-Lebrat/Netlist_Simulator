@@ -7,4 +7,4 @@ lexer.o:lexer.cpp
 schedule.o:schedule.cpp
 
 %.o:%.cpp
-	g++ -w -o $@ -c $<
+	g++ -o $@ -c $<
