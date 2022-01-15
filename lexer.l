@@ -42,7 +42,9 @@
         {"SELECT",SELECT},
         {"SLICE",SLICE},
         {"ROM",ROM},
-        {"RAM",RAM}
+        {"RAM",RAM},
+        {"CLOCK",CLOCK},
+        {"DISPLAY",DISPLAY}
     };
 %}
 
@@ -83,6 +85,8 @@ id _?[a-zA-Z](_|[a-zA-Z0-9])*
     case VAR:
     case IN:
     case RAM:
+    case CLOCK:
+    case DISPLAY:
         return it->second;
     case NOT:
     case REG:

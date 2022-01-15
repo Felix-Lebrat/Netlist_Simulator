@@ -90,12 +90,14 @@
 %token <i> TERNOP
 %token EQUAL
 %token DP
+%token DISPLAY
+%token CLOCK
 
 %type <i> right_equation
 %type <exp> expression
 
 %%
-program:INPUT input OUTPUT output VAR vars IN d
+program:INPUT input OUTPUT output meta VAR vars IN d
 ;
 
 input:
@@ -105,6 +107,9 @@ input:
 output:
     |ID output {prg.output.push_back($1);}
 ;
+
+meta: %empty {prg.meta=false;}
+    |CLOCK ID DISPLAY ID RAM ID {prg.meta=true;prg.clock=$2;prg.display=$4;prg.ram=$6;}
 
 vars:
     |ID DP NUM vars {prg.var.push_back(Var($1,atoi($3)));}

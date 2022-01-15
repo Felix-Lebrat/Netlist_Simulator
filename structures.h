@@ -42,6 +42,10 @@ struct Program
     std::vector<Var> var;
     std::vector<std::string> input;
     std::vector<std::string> output;
+    bool meta;
+    std::string clock;
+    std::string display;
+    std::string ram;
     std::vector<Equation> equations;
     std::vector<Const> constants;
     std::map<std::string,int> var_dict;

@@ -3,6 +3,9 @@
 #include <iostream>
 #include <vector>
 #include <functional>
+#include <ctime>
+#include <cmath>
+#include <ncurses.h>
 
 using namespace std;
 
@@ -16,7 +19,9 @@ void create_mem(char **mem,int addr_size,int word_size);
 
 int to_int(char *mem,int addr,int word_size);
 
-void print(char *mem,int addr,int word_size);
+void of_int(char *mem,int addr,int word_size,int i);
+
+void print(char *mem,int addr,int word_size,bool meta);
 
 bool of_input(char *mem,int size,string mem_name);
 
@@ -42,13 +47,49 @@ void op_mux(char* left,char* choice,char *a,char *b,int size);
 
 void op_slice(char* left,int i1,int i2,char *a);
 
+//l'horloge
+struct Coord
+{
+        Coord():x(0),y(0){};
+        Coord(double x,double y):x(x),y(y){};
+
+        double x;
+        double y;
+};
+
+Coord operator+(Coord const& a,Coord const& b);
+Coord operator-(Coord const& a,Coord const& b);
+Coord operator*(double const& a,Coord const& b);
+
+void setPixel(Coord pos);
+
+void segment(Coord a,Coord b);
+
+const Coord segments[7][2]=
+{
+    {Coord(0,1),Coord(0,4)},
+    {Coord(1,5),Coord(4,5)},
+    {Coord(6,5),Coord(9,5)},
+    {Coord(10,4),Coord(10,1)},
+    {Coord(9,0),Coord(6,0)},
+    {Coord(4,0),Coord(1,0)},
+    {Coord(5,1),Coord(5,4)}
+};
+
+void afficheur(Coord pos,char val);
+
+void horloge(Coord pos,char* data);
+
 //déclaration des variables
 $
 
 int main(int argc,char **argv)
 {
+
     int step=-1;
     bool hexa=false;
+    int clock=0;
+    char clock_data[14];
 
     for(int i=1;i<argc;i++)
     {
@@ -83,6 +124,12 @@ $
     //equations
 $
 
+    if(meta)
+    {
+        initscr();
+        start_color();
+        init_pair(1,COLOR_GREEN,COLOR_GREEN);
+    }
     while(step!=0)
     {
         step--;
@@ -95,9 +142,40 @@ $
         //outputs
 $
 
+        if(meta)
+        {
+            if(clock!=time(0))
+            {
+                clock=time(0);
+                of_int(clock_registre,0,reg_size,clock);
+            }
+
+            int disp=to_int(display,0,reg_size);
+            if(disp!=0)
+            {
+                for(int i=0;i<14;i++)
+                {   
+                    clock_data[i]=int(
+                        (to_int(ram,
+                        (disp&((1<<ram_size_addr)-1))+i,//on selectionne les derniers bits pour l'adresse
+                        ram_size_word))
+                        &((1<<7)-1));//7 bits d'information
+                }
+                horloge(Coord(9,9),clock_data);
+                of_int(display,0,reg_size,0);
+            }
+        }
+
         //actualisation des registres
 $
+        if(meta)
+        {
+            refresh();
+        }
+
     }
+
+    if(meta) endwin();
 }
 
 bool get_bit(char *mem,int no)
@@ -147,13 +225,26 @@ int to_int(char *mem,int addr,int word_size)
     return ret;
 }
 
-void print(char *mem,int addr,int word_size)
+void of_int(char *mem,int addr,int word_size,int i)
 {
+    for(int k=word_size-1;k>=0;k--)
+    {
+        set_bit(mem,addr*word_size+k,i%2);
+        i/=2;
+    }
+}
+
+void print(char *mem,int addr,int word_size,bool meta)
+{
+    if(meta) move(0,0);
     for(int i=0;i<word_size;i++)
     {
-        cout<<get_bit(mem,addr*word_size+i);
+        if(meta)
+            printw("%d",get_bit(mem,addr*word_size+i));
+        else
+            cout<<get_bit(mem,addr*word_size+i);
     }
-    cout<<endl;
+    if(!meta) cout<<endl;
 }
 
 bool of_input(char *mem,int size,string mem_name)
@@ -319,4 +410,101 @@ void op_slice(char* left,int i1,int i2,char *a)
     {
         set_bit(left,i,get_bit(a,i+i1));
     }
+}
+
+//l'horloge
+Coord operator+(Coord const& a,Coord const& b)
+{
+    return Coord(a.x+b.x,a.y+b.y);
+}
+
+Coord operator*(double const& a,Coord const& b)
+{
+    return Coord(a*b.x,a*b.y);
+}
+
+Coord operator-(Coord const& a,Coord const& b)
+{
+    return a+(-1)*b;
+}
+
+void setPixel(Coord pos)
+{
+    mvaddch(int(pos.x),int(2*pos.y),' '|COLOR_PAIR(1));    
+    mvaddch(int(pos.x),int(2*pos.y+1),' '|COLOR_PAIR(1));    
+}
+
+void segment(Coord a,Coord b)
+{
+    Coord vect;
+    Coord dir(b.x-a.x,b.y-a.y);
+    Coord pos=a;
+    double norm(sqrt(dir.x*dir.x+dir.y*dir.y));
+    dir.x/=norm;
+    dir.y/=norm;
+    while(norm>0.9)
+    {
+        setPixel(pos);
+
+        pos=pos+dir;
+
+        vect=b-pos;
+
+        norm=vect.x*vect.x+vect.y*vect.y;
+    }
+    setPixel(pos);
+}
+
+void afficheur(Coord pos,char val)
+{
+    for(int i=0;i<7;i++)
+    {
+        if(val%2)
+        {
+            segment(segments[i][0]+pos,segments[i][1]+pos);
+        }
+        val/=2;
+    }
+}
+
+void horloge(Coord pos,char* data)
+{
+    Coord curr_pos=pos+Coord(0,10);
+
+    for(int i=0;i<3;i++)
+    {
+        afficheur(curr_pos,data[2*i]);
+        curr_pos=curr_pos+Coord(0,7);
+        afficheur(curr_pos,data[2*i+1]);
+        curr_pos=curr_pos+Coord(0,7);
+        if(i!=2)
+        {
+            setPixel(curr_pos+Coord(3,0));
+            setPixel(curr_pos+Coord(7,0));
+            curr_pos=curr_pos+Coord(0,2);
+        }
+    }
+
+    curr_pos=pos+Coord(13,0);
+    for(int i=3;i<6;i++)
+    {
+        afficheur(curr_pos,data[2*i]);
+        curr_pos=curr_pos+Coord(0,7);
+        afficheur(curr_pos,data[2*i+1]);
+        curr_pos=curr_pos+Coord(0,7);
+        if(i==5)
+        {
+            i++;
+            afficheur(curr_pos,data[2*i]);
+            curr_pos=curr_pos+Coord(0,7);
+            afficheur(curr_pos,data[2*i+1]);
+            curr_pos=curr_pos+Coord(0,7);
+        }
+        else
+        {
+            segment(curr_pos+Coord(9,0),curr_pos+Coord(1,3));            
+            curr_pos=curr_pos+Coord(0,5);
+        }
+    }
+    mvaddch(LINES-1,COLS-1,' ');
 }
