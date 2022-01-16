@@ -11,6 +11,8 @@
     void yyerror(char* s)
     {
         fprintf (stderr, "%s ligne %d colonne %d\n", s,yylloc.first_line,yylloc.first_column);
+        int* i(0);
+        *i=0;
         exit(EXIT_FAILURE);
     }
     Program prg;
@@ -100,24 +102,28 @@
 program:INPUT input OUTPUT output meta VAR vars IN d
 ;
 
-input:
-    |ID input {prg.input.push_back($1);}
+input:%empty
+    |input ID {prg.input.push_back($2);}
 ;
 
-output:
-    |ID output {prg.output.push_back($1);}
+output:%empty
+    |output ID{prg.output.push_back($2);}
 ;
 
-meta: %empty {prg.meta=false;}
+meta:%empty {prg.meta=false;}
     |CLOCK ID DISPLAY ID RAM ID {prg.meta=true;prg.clock=$2;prg.display=$4;prg.ram=$6;}
-
-vars:
-    |ID DP NUM vars {prg.var.push_back(Var($1,atoi($3)));}
-    |ID vars {prg.var.push_back(Var($1,1));}
 ;
 
-d:  {}
-    |ID EQUAL right_equation d {prg.equations[$3].left=$ID;}
+vars:%empty
+    |vars var
+;
+
+var:ID DP NUM {prg.var.push_back(Var($1,atoi($3)));}
+    |ID {prg.var.push_back(Var($1,1));}
+;
+
+d:  %empty {}
+    |d ID EQUAL right_equation{prg.equations[$4].left=$ID;}
 ;
 
 right_equation:ID {
