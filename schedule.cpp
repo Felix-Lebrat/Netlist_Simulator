@@ -75,7 +75,21 @@ void schedule(Program *p)
             g.add_edge(depend[j],p->equations[i].left);
         }
     }
-    vector<string> top=g.topological();
+    vector<string> top;
+    try
+    {
+        top=g.topological();
+    }
+    catch(const vector<string>& e)
+    {
+        cerr << "cycle : \n";
+        for(int i=0;i<e.size();i++)
+        {
+            cerr<<e[i]<<endl;
+        }
+        exit(EXIT_FAILURE);
+    }
+    
     vector<Equation> equations;
     
     for(int i=0;i<top.size();i++)

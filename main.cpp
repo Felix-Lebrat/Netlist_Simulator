@@ -53,6 +53,8 @@ int main(int argc,char **argv)
         exit(EXIT_FAILURE);
     }
 
+    cerr<<"production de code terminée"<<endl;
+
     system("g++ -w -o out out.cpp -lncurses");
     
     return 0;

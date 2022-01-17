@@ -11,8 +11,6 @@
     void yyerror(char* s)
     {
         fprintf (stderr, "%s ligne %d colonne %d\n", s,yylloc.first_line,yylloc.first_column);
-        int* i(0);
-        *i=0;
         exit(EXIT_FAILURE);
     }
     Program prg;

@@ -22,6 +22,7 @@ private:
     std::vector<Node> m_nodes;
     bool explore(Node *n);
     void explore2(Node *n,std::vector<T> *v);
+    std::vector<T> m_cycle;
 public:
     void add_node(T x);
     Node* node_of_label(T x);
@@ -74,7 +75,10 @@ template <typename T>
 bool Graph<T>::explore(Node *n)
 {
     if(n->mark==InProgress)
+    {
+        m_cycle.push_back(n->label);
         return true;
+    }
     bool ret=false;
     if(n->mark==NotVisited)
     {
@@ -82,7 +86,12 @@ bool Graph<T>::explore(Node *n)
         for(int i=0;i<n->link_too.size();i++)
         {
             if(explore(n->link_too[i]))
+            {
+                m_cycle.push_back(n->link_too[i]->label);
+                if(n->label==m_cycle[0])
+                    throw m_cycle;
                 return true;
+            }
         }
         n->mark=Visited;
     }
@@ -122,8 +131,7 @@ vector<T> Graph<T>::topological()
 {
     if(has_cycle())
     {
-        cerr<<"le graphe a un cycle"<<endl;
-        exit(EXIT_FAILURE);
+        throw m_cycle;
     }
 
     clear_marks();
