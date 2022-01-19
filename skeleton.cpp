@@ -27,7 +27,7 @@ bool of_input(char *mem,int size,string mem_name);
 
 void of_string(char *mem,int size,string str);
 
-void init_rom(char *rom,char* filename,bool hexa,int addr_size,int word_size);
+void init_rom(char *rom,const char* filename,bool hexa,int addr_size,int word_size);
 
 void op_not(char *left,char* right,int size);
 
@@ -42,8 +42,6 @@ void op_xor(char *left,char* a,char* b,int size);
 void op_concat(char *left,char* a,char* b,int a_size,int b_size);
 
 void op_select(char *left,int i,char *a);
-
-void op_mux(char* left,char* choice,char *a,char *b,int size);
 
 void op_slice(char* left,int i1,int i2,char *a);
 
@@ -80,8 +78,263 @@ void afficheur(Coord pos,char val);
 
 void horloge(Coord pos,char* data);
 
-//déclaration des variables
-$
+//les classes
+class Variable
+{
+public:
+    Variable(){};
+    Variable(int addr_size,int word_size)
+    :m_addr_size(addr_size),m_word_size(word_size),m_etape(0)
+    {
+        create_mem(&m_mem,addr_size,word_size);
+    }
+    char* val()
+    {
+        if(m_etape!=Variable::etape)
+        {
+            calculer();
+            m_etape=Variable::etape;
+        }
+        return m_mem;
+    };
+    virtual void calculer()=0;
+    static int etape;
+    int get_word_size(){return m_word_size;};
+    int get_addr_size(){return m_addr_size;};
+    char* get_mem(){return m_mem;};
+protected:
+    char* m_mem;
+    int m_etape;
+    int m_addr_size;
+    int m_word_size;
+};
+
+class Id:public Variable
+{
+public:
+    Id(){};
+    Id(int addr_size,int word_size,Variable* var):Variable(addr_size,word_size),m_var(var)
+    {};
+    void calculer()
+    {
+        copy(m_var->val(),m_mem,0,0,m_word_size);
+    }
+private:
+    Variable* m_var;
+};
+
+class Constante:public Variable
+{
+public:
+    Constante(){};
+    Constante(int word_size,string c):Variable(0,word_size)
+    {
+        of_string(m_mem,word_size,c);
+    };
+    void calculer(){};
+};
+
+class Not:public Variable
+{
+public:
+    Not(){};
+    Not(int word_size,Variable* var):Variable(0,word_size),m_var(var)
+    {};
+    void calculer()
+    {
+        op_not(m_mem,m_var->val(),m_word_size);
+    };
+private:
+    Variable* m_var;
+};
+
+class Reg:public Variable
+{
+public:
+    Reg(){};
+    Reg(int word_size,Variable *var):Variable(0,word_size),m_var(var)
+    {};
+    void calculer(){};
+    void actualiser()
+    {
+        copy(m_var->val(),m_mem,0,0,m_word_size);
+    };
+    char* get_mem(){return m_mem;};
+private:
+    Variable* m_var;
+};
+
+class Concat:public Variable
+{
+public:
+    Concat(){};
+    Concat(Variable *a,Variable* b):Variable(0,a->get_word_size()+b->get_word_size()),
+    m_a(a),m_b(b)
+    {};
+    void calculer()
+    {
+        op_concat(m_mem,m_a->val(),m_b->val(),m_a->get_word_size(),m_b->get_word_size());
+    };
+private:
+    Variable* m_a;
+    Variable* m_b;
+
+};
+
+class Select:public Variable
+{
+public:
+    Select(){};
+    Select(Variable* var,int no):Variable(0,1),m_var(var),m_no(no)
+    {};
+    void calculer()
+    {
+        op_select(m_mem,m_no,m_var->val());
+    }
+private:
+    Variable* m_var;
+    int m_no;
+};
+
+class Mux:public Variable
+{
+public:
+    Mux(){};
+    Mux(Variable* choice,Variable* a,Variable* b):
+    Variable(0,a->get_word_size()),m_choice(choice),m_a(a),m_b(b){};
+    void calculer()
+    {
+        if(!get_bit(m_choice->val(),0))
+            copy(m_a->val(),m_mem,0,0,m_word_size);
+        else
+            copy(m_b->val(),m_mem,0,0,m_word_size);
+    };
+private:
+    Variable* m_choice;
+    Variable* m_a;
+    Variable* m_b;
+};
+
+class Slice:public Variable
+{
+public:
+    Slice(){};
+    Slice(Variable *var,int i1,int i2)
+    :Variable(0,i2-i1+1),m_var(var),m_i1(i1),m_i2(i2)
+    {};
+    void calculer()
+    {
+        op_slice(m_mem,m_i1,m_i2,m_var->val());
+    };
+private:
+    Variable* m_var;
+    int m_i1;
+    int m_i2;
+};
+
+class Rom:public Variable
+{
+public:
+    Rom(){};
+    Rom(int word_size,string nom,bool hexa,Variable *ra)
+    :Variable(ra->get_word_size(),word_size),m_ra(ra)
+    {
+        create_mem(&m_rom,m_addr_size,word_size);
+        init_rom(m_rom,nom.c_str(),hexa,m_addr_size,word_size);
+    };
+    void calculer()
+    {
+        copy(m_rom,m_mem,to_int(m_ra->val(),0,m_addr_size),0,m_word_size);
+    };
+private:
+    char* m_rom;
+    Variable* m_ra;
+};
+
+class Ram:public Variable
+{
+public:
+    Ram(){};
+    Ram(Variable* ra,
+    Variable* we,Variable* wa,Variable* wd,int word_size):
+    Variable(ra->get_word_size(),word_size),m_ra(ra),m_we(we),
+    m_wa(wa),m_wd(wd)
+    {
+        create_mem(&m_ram,m_addr_size,m_word_size);
+    };
+    void calculer()
+    {
+        copy(m_ram,m_mem,to_int(m_ra->val(),0,m_addr_size),0,m_word_size);
+    };
+    void actualiser()
+    {
+        if(get_bit(m_we->val(),0))
+        {
+            copy(m_wd->val(),m_ram,0,to_int(m_wa->val(),0,m_addr_size),m_word_size);
+        }
+    };
+    char* get_ram(){return m_ram;};
+private:
+    char* m_ram;
+    Variable* m_ra;
+    Variable* m_we;
+    Variable* m_wa;
+    Variable* m_wd;
+};
+
+class Binop:public Variable
+{
+public:
+    Binop(){};
+    Binop(Variable* a,Variable* b,char op)
+    :Variable(0,a->get_word_size()),m_op(op),m_a(a),m_b(b)
+    {};
+    void calculer()
+    {
+        switch (m_op)
+        {
+        case 'a'://and
+            op_and(m_mem,m_a->val(),m_b->val(),m_word_size);
+            break;
+        case 'o'://or
+            op_or(m_mem,m_a->val(),m_b->val(),m_word_size);
+            break;
+        case 'n'://nand
+            op_nand(m_mem,m_a->val(),m_b->val(),m_word_size);
+            break;
+        case 'x'://xor
+            op_xor(m_mem,m_a->val(),m_b->val(),m_word_size);
+            break;
+        default:
+            throw "oups";
+            break;
+        }
+    };
+private:
+    Variable* m_a;
+    Variable* m_b;
+    char m_op;
+
+};
+
+class Input:public Variable
+{
+public:
+    Input(){};
+    Input(string name,int word_size):
+    Variable(0,word_size),m_name(name)
+    {};
+    void calculer()
+    {
+        while(!of_input(m_mem,m_word_size,m_name));
+    };
+private:
+    string m_name;
+};
+
+
+int Variable::etape=0;
+
 
 int main(int argc,char **argv)
 {
@@ -109,19 +362,10 @@ int main(int argc,char **argv)
         }
     }
 
-    //initialisation des roms
+//déclaration des variables
 $
 
-    //creation des rams
-$
-
-    //creation des variables
-$
-
-    //creation des registres
-$
-
-    //equations
+//initialisation des variables
 $
 
     if(meta)
@@ -132,45 +376,48 @@ $
     }
     while(step!=0)
     {
+        Variable::etape++;
         step--;
-        //inputs
+
+        //outputs
 $
 
         //actualisation des rams
 $
 
-        //outputs
+
+        //actualisation des registres
 $
+
 
         if(meta)
         {
             if(clock!=time(0))
             {
                 clock=time(0);
-                of_int(clock_registre,0,reg_size,clock);
+                of_int(clock_registre->get_mem(),0,clock_registre->get_word_size(),clock);
             }
 
-            int disp=to_int(display,0,reg_size);
+            int disp=to_int(display->get_mem(),0,display->get_word_size());
             if(disp!=0)
             {
                 for(int i=0;i<14;i++)
                 {   
                     clock_data[i]=int(
-                        (to_int(ram,
-                        (disp&((1<<ram_size_addr)-1))+i,//on selectionne les derniers bits pour l'adresse
-                        ram_size_word))
+                        (to_int(ram->get_ram(),
+                        (disp&((1<<ram->get_addr_size())-1))+i,//on selectionne les derniers bits pour l'adresse
+                        ram->get_word_size()))
                         &((1<<7)-1));//7 bits d'information
                 }
                 horloge(Coord(9,9),clock_data);
-                of_int(display,0,reg_size,0);
+                of_int(display->get_mem(),0,display->get_word_size(),0);
             }
         }
 
-        //actualisation des registres
-$
         if(meta)
         {
             refresh();
+            getch();
         }
 
     }
@@ -282,7 +529,7 @@ void of_string(char *mem,int size,string str)
     }
 }
 
-void init_rom(char *rom,char* filename,bool hexa,int addr_size,int word_size)
+void init_rom(char *rom,const char* filename,bool hexa,int addr_size,int word_size)
 {
     ifstream file(filename);
     if(!file)
@@ -396,13 +643,6 @@ void op_select(char *left,int i,char *a)
     set_bit(left,0,get_bit(a,i));
 }
 
-void op_mux(char* left,char* choice,char *a,char *b,int size)
-{
-    if(!get_bit(choice,0))
-        copy(a,left,0,0,size);
-    else
-        copy(b,left,0,0,size);
-}
 
 void op_slice(char* left,int i1,int i2,char *a)
 {
