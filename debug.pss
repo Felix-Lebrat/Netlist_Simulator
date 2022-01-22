@@ -1,0 +1,13 @@
+main:
+    mov 2 rdx
+    sub 1 rdx #-1
+    mov 1000 rcx
+    mul 100 rcx
+while:
+    mov 42 rax
+    mul rcx rax
+    add rdx rcx
+    test rcx rcx
+    jnz while
+    mov 1 r14
+    

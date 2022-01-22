@@ -112,7 +112,10 @@ id _?[a-zA-Z](_|[a-zA-Z0-9])*
     }
     return EOF;
 }
-{num} {yylval.str=yytext;return NUM;}
+{num} {
+        yylval.str=(char*)malloc(strlen(yytext)+1);
+        strcpy(yylval.str,yytext);
+        return NUM;}
 = {return EQUAL;}
 : {return DP;}
 {whitespace}

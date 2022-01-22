@@ -343,6 +343,7 @@ int main(int argc,char **argv)
     bool hexa=false;
     int clock=0;
     char clock_data[14];
+    bool affichage=true;
 
     for(int i=1;i<argc;i++)
     {
@@ -360,6 +361,8 @@ int main(int argc,char **argv)
             }
             continue;
         }
+        if(argv[i]==string("-a"))
+            affichage=false;
     }
 
 //déclaration des variables
@@ -379,8 +382,13 @@ $
         Variable::etape++;
         step--;
 
+        if(affichage)
+        {
+
         //outputs
 $
+
+        }
 
         //actualisation des rams
 $
@@ -409,6 +417,7 @@ $
                         ram->get_word_size()))
                         &((1<<7)-1));//7 bits d'information
                 }
+                clear();
                 horloge(Coord(9,9),clock_data);
                 of_int(display->get_mem(),0,display->get_word_size(),0);
             }
@@ -417,7 +426,6 @@ $
         if(meta)
         {
             refresh();
-            getch();
         }
 
     }

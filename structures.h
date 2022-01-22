@@ -7,6 +7,17 @@
 #include <string>
 #include <map>
 
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+};
+# define YYLTYPE_IS_DECLARED 1
+# define YYLTYPE_IS_TRIVIAL 1
+
 struct Var
 {
     Var(){};
@@ -31,10 +42,12 @@ union Expression
 struct Equation
 {
     Equation(){};
-    Equation(int type,std::string left,std::vector<Expression> right):type(type),left(left),right(right){};
+    Equation(int type,std::string left,std::vector<Expression> right):ligne(Equation::cur_ligne),type(type),left(left),right(right){};
     int type;
     std::string left;
     std::vector<Expression> right;
+    int ligne;
+    static int cur_ligne;
 };
 
 struct Program

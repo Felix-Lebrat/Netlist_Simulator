@@ -39,6 +39,8 @@
         return ret;
     }
 
+    int Equation::cur_ligne(0);
+
     # define YYLLOC_DEFAULT(Cur, Rhs, N)                      \
     do  {                                                      \
     if (N)                                                  \
@@ -55,6 +57,7 @@
         (Cur).first_column = (Cur).last_column =            \
             YYRHSLOC(Rhs, 0).last_column;                     \
     }                                                     \
+    Equation::cur_ligne=(Cur).first_line; \
     }                                              \
     while (0)
 %}
@@ -147,7 +150,7 @@ right_equation:ID {
     }
     |SELECT NUM expression {
         Expression e;
-        e.i=atoi($2);        
+        e.i=atoi($2);
         prg.equations.push_back(Equation(SELECT,"",{e,$3}));
         $$=prg.equations.size()-1;
     }
